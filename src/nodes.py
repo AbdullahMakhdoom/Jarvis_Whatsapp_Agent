@@ -3,6 +3,7 @@ from .state import AICompanionState
 from .schedules import ScheduleContextGenerator
 from .chains import get_character_response_chain, get_chat_model
 from .settings import settings
+from .modules.long_term_memory.memory_manager import MemoryManager
 
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
@@ -52,3 +53,27 @@ async def summarize_conversation_node(state: AICompanionState):
 
     delete_messages = [RemoveMessage(id=m.id) for m in state["messages"][: -settings.TOTAL_MESSAGES_AFTER_SUMMARY]]
     return {"summary": response.content, "messages": delete_messages}
+
+
+async def memory_extraction_node(state: AICompanionState):
+    """Extract and store important information from the last message."""
+    if not state["messages"]:
+        return {}
+
+    memory_manager = MemoryManager()
+    await memory_manager.extract_and_store_memories(state["messages"][-1])
+    return {}
+
+
+def memory_injection_node(state: AICompanionState):
+    """Retrieve and inject relevant memories into the character card."""
+    memory_manager = MemoryManager()
+
+    # Get relevant memories based on recent conversation
+    recent_context = " ".join([m.content for m in state["messages"][-3:]])
+    memories = memory_manager.get_relevant_memories(recent_context)
+
+    # Format memories for the character card
+    memory_context = memory_manager.format_memories_for_prompt(memories)
+
+    return {"memory_context": memory_context}
