@@ -4,3 +4,5 @@ pydantic_settings==2.13.0
 chainlit==2.9.6
 langgraph-checkpoint-sqlite==3.0.3
 qdrant-client==1.17.0
+elevenlabs==2.36.1
+groq==1.0.0

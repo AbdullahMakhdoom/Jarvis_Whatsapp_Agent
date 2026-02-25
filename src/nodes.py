@@ -1,9 +1,10 @@
 
 from .state import AICompanionState
 from .schedules import ScheduleContextGenerator
-from .chains import get_character_response_chain, get_chat_model
+from .chains import get_character_response_chain, get_chat_model, get_router_chain
 from .settings import settings
 from .modules.long_term_memory.memory_manager import MemoryManager
+from .modules.speech.text_to_speech import TextToSpeech
 
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
@@ -77,3 +78,26 @@ def memory_injection_node(state: AICompanionState):
     memory_context = memory_manager.format_memories_for_prompt(memories)
 
     return {"memory_context": memory_context}
+
+async def audio_node(state: AICompanionState, config: RunnableConfig):
+    current_activity = ScheduleContextGenerator.get_current_activity()
+    memory_context = state.get("memory_context", "")
+
+    chain = get_character_response_chain(state.get("summary", ""))
+
+    response = await chain.ainvoke(
+        {
+            "messages": state["messages"],
+            "current_activity": current_activity,
+            "memory_context": memory_context,
+        },
+        config,
+    )
+    output_audio = await TextToSpeech().synthesize(response)
+
+    return {"messages": response, "audio_buffer": output_audio}
+
+async def router_node(state: AICompanionState):
+    chain = get_router_chain()
+    response = await chain.ainvoke({"messages": state["messages"][-settings.ROUTER_MESSAGES_TO_ANALYZE :]})
+    return {"workflow": response.response_type}

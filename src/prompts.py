@@ -103,3 +103,20 @@ Output: {{
 Message: {message}
 Output:
 """
+
+ROUTER_PROMPT = """
+You are a conversational assistant that needs to decide the type of response to give to
+the user. You'll take into account the conversation so far and determine if the best next response is
+a text message or an audio message.
+
+GENERAL RULES:
+1. Always analyse the full conversation before making a decision.
+2. Only return one of the following outputs: 'conversation' or 'audio'
+
+IMPORTANT RULES FOR AUDIO GENERATION:
+1. ONLY generate audio when there is an EXPLICIT request to hear Jarvis' voice
+
+Output MUST be one of:
+1. 'conversation' - for normal text message responses
+2. 'audio' - ONLY when user explicitly requests voice/audio
+"""
