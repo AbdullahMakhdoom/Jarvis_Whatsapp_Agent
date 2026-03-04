@@ -13,6 +13,7 @@ from src.graph import create_workflow_graph
 from src.settings import settings
 from src.modules.speech.speech_to_text import SpeechToText
 from src.modules.speech.text_to_speech import TextToSpeech
+from src.modules.image.image_to_text import ImageToText
 
 # Global module instances
 speech_to_text = SpeechToText()
@@ -29,6 +30,27 @@ async def on_chat_start():
 async def on_message(message: cl.Message):
     """Handle text messages and images"""
     msg = cl.Message(content="")
+
+    # Process any attached images
+    content = message.content
+    if message.elements:
+        for elem in message.elements:
+            if isinstance(elem, cl.Image):
+                # Read image file content
+                with open(elem.path, "rb") as f:
+                    image_bytes = f.read()
+
+                # Analyze image and add to message content
+                try:
+                    # Use global ImageToText instance
+                    description = await ImageToText().analyze_image(
+                        image_bytes,
+                        "Please describe what you see in this image in the context of our conversation.",
+                    )
+                    content += f"\n[Image Analysis: {description}]"
+
+                except Exception as e:
+                    cl.logger.warning(f"Failed to analyze image: {e}")
    
     # Process through graph with enriched message content
     thread_id = cl.user_session.get("thread_id")
@@ -37,7 +59,7 @@ async def on_message(message: cl.Message):
         async with AsyncSqliteSaver.from_conn_string(settings.SHORT_TERM_MEMORY_DB_PATH) as short_term_memory:
             graph = create_workflow_graph().compile(checkpointer=short_term_memory)
             async for chunk in graph.astream(
-                {"messages": [HumanMessage(content=message.content)]},
+                {"messages": [HumanMessage(content=content)]},
                 {"configurable": {"thread_id": thread_id}},
                 stream_mode="messages",
             ):
@@ -56,6 +78,10 @@ async def on_message(message: cl.Message):
             content=audio_buffer,
         )
         await cl.Message(content=response, elements=[output_audio_el]).send()
+    elif output_state.values.get("workflow") == "image":
+        response = output_state.values["messages"][-1].content
+        image = cl.Image(path=output_state.values["image_path"], display="inline")
+        await cl.Message(content=response, elements=[image]).send()
     else:
         await msg.send()
 

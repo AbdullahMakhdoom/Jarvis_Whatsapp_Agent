@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
     TEXT_MODEL_NAME: str = "gpt-5-nano-2025-08-07"
     SMALL_TEXT_MODEL_NAME: str = "gpt-5-nano-2025-08-07"
+    ITT_MODEL_NAME: str = "gpt-4o-mini"
 
     GROQ_API_KEY: str
     ELEVENLABS_API_KEY: str
@@ -23,6 +24,9 @@ class Settings(BaseSettings):
     QDRANT_URL: str
     QDRANT_PORT: str = "6333"
     QDRANT_HOST: str | None = None
+
+    TOGETHER_API_KEY: str
+    TTI_MODEL_NAME: str = "black-forest-labs/FLUX.1-schnell"
 
     MEMORY_TOP_K: int = 3
     ROUTER_MESSAGES_TO_ANALYZE: int = 3

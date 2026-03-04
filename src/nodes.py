@@ -1,3 +1,5 @@
+import os
+from uuid import uuid4
 
 from .state import AICompanionState
 from .schedules import ScheduleContextGenerator
@@ -5,6 +7,7 @@ from .chains import get_character_response_chain, get_chat_model, get_router_cha
 from .settings import settings
 from .modules.long_term_memory.memory_manager import MemoryManager
 from .modules.speech.text_to_speech import TextToSpeech
+from .modules.image.text_to_image import TextToImage
 
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
@@ -101,3 +104,31 @@ async def router_node(state: AICompanionState):
     chain = get_router_chain()
     response = await chain.ainvoke({"messages": state["messages"][-settings.ROUTER_MESSAGES_TO_ANALYZE :]})
     return {"workflow": response.response_type}
+
+
+async def image_node(state: AICompanionState, config: RunnableConfig):
+    current_activity = ScheduleContextGenerator.get_current_activity()
+    memory_context = state.get("memory_context", "")
+
+    chain = get_character_response_chain(state.get("summary", ""))
+    text_to_image_module = TextToImage()
+
+    scenario = await text_to_image_module.create_scenario(state["messages"][-5:])
+    os.makedirs("generated_images", exist_ok=True)
+    img_path = f"generated_images/image_{str(uuid4())}.png"
+    await text_to_image_module.generate_image(scenario.image_prompt, img_path)
+
+    # Inject the image prompt information as an AI message
+    scenario_message = HumanMessage(content=f"<image attached by Ava generated from prompt: {scenario.image_prompt}>")
+    updated_messages = state["messages"] + [scenario_message]
+
+    response = await chain.ainvoke(
+        {
+            "messages": updated_messages,
+            "current_activity": current_activity,
+            "memory_context": memory_context,
+        },
+        config,
+    )
+
+    return {"messages": AIMessage(content=response), "image_path": img_path}
