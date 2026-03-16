@@ -19,8 +19,29 @@ services:
       - QDRANT_API_KEY=None
       - QDRANT_HOST=qdrant
       - QDRANT_URL=http://qdrant:6333
+      - LANGCHAIN_TRACING_V2=true
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=jarvis-agent
     restart: unless-stopped
     volumes: 
       - ./data:/app/data
     depends_on:
       - qdrant
+  whatsapp:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      ports:
+        - "8080:8080"
+      env_file:
+        - .env
+      environment:
+        - QDRANT_PORT=6333
+        - QDRANT_API_KEY=None
+        - QDRANT_HOST=localhost
+        - QDRANT_URL=http://qdrant:6333
+      restart: unless-stopped
+      volumes: 
+        - ./data:/app/data
+      depends_on:
+        - qdrant
