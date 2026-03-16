@@ -3,7 +3,7 @@ from typing import Optional
 
 from ...exceptions import TextToSpeechError
 from ...settings import settings
-from elevenlabs import ElevenLabs, Voice, VoiceSettings
+from elevenlabs import AsyncElevenLabs, VoiceSettings
 
 
 class TextToSpeech:
@@ -15,7 +15,7 @@ class TextToSpeech:
     def __init__(self):
         """Initialize the TextToSpeech class and validate environment variables."""
         self._validate_env_vars()
-        self._client: Optional[ElevenLabs] = None
+        self._client: Optional[AsyncElevenLabs] = None
 
     def _validate_env_vars(self) -> None:
         """Validate that all required environment variables are set."""
@@ -24,10 +24,10 @@ class TextToSpeech:
             raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
     @property
-    def client(self) -> ElevenLabs:
-        """Get or create ElevenLabs client instance using singleton pattern."""
+    def client(self) -> AsyncElevenLabs:
+        """Get or create async ElevenLabs client instance using singleton pattern."""
         if self._client is None:
-            self._client = ElevenLabs(api_key=settings.ELEVENLABS_API_KEY)
+            self._client = AsyncElevenLabs(api_key=settings.ELEVENLABS_API_KEY)
         return self._client
 
     async def synthesize(self, text: str) -> bytes:
@@ -50,18 +50,19 @@ class TextToSpeech:
             raise ValueError("Input text exceeds maximum length of 5000 characters")
 
         try:
-            audio_generator = self.client.text_to_speech.convert(
+            audio_chunks = []
+            async for chunk in self.client.text_to_speech.convert(
                 voice_id=settings.ELEVENLABS_VOICE_ID,
                 text=text,
                 model_id=settings.TTS_MODEL_NAME,
-                voice_settings= VoiceSettings(
+                voice_settings=VoiceSettings(
                     stability=0.5,
-                    similarity_boost=0.5
-                )
-            )
+                    similarity_boost=0.5,
+                ),
+            ):
+                audio_chunks.append(chunk)
 
-            # Convert generator to bytes
-            audio_bytes = b"".join(audio_generator)
+            audio_bytes = b"".join(audio_chunks)
             if not audio_bytes:
                 raise TextToSpeechError("Generated audio is empty")
 
